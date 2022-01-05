@@ -3,15 +3,24 @@ package aliyunDriveUpload
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/go-sdk/lib/consts"
+	"github.com/go-sdk/lib/log"
 )
 
 func UploadFile(refreshToken, directory, filename string) (*CompleteResp, error) {
-	bs, err := os.ReadFile(filename)
+	file, err := os.Open(filename)
 	if err != nil {
 		return nil, err
+	}
+
+	fs, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+
+	if fs.IsDir() {
+		return nil, fmt.Errorf("upload: only support a file not a directory")
 	}
 
 	token, err := GetToken(refreshToken)
@@ -27,10 +36,10 @@ func UploadFile(refreshToken, directory, filename string) (*CompleteResp, error)
 		DriveId:       token.DefaultDriveId,
 		PartInfoList:  []FilePartReq{{PartNumber: 1}},
 		ParentFileId:  directory,
-		Name:          filepath.Base(filename),
+		Name:          fs.Name(),
 		Type:          "file",
 		CheckNameMode: "auto_rename",
-		Size:          len(bs),
+		Size:          fs.Size(),
 	}
 
 	fileResp, err := hc.
@@ -58,7 +67,7 @@ func UploadFile(refreshToken, directory, filename string) (*CompleteResp, error)
 	uploadResp, err := hc.
 		NewRequest().
 		SetHeader(emptyContentType, "true").
-		SetBody(bs).
+		SetBody(&ProgressReader{reader: file, hook: pHook, totalBytes: fs.Size()}).
 		SetError(OSSResp{}).
 		Put(fileRes.PartInfoList[0].UploadUrl)
 	if err != nil {
@@ -88,4 +97,17 @@ func UploadFile(refreshToken, directory, filename string) (*CompleteResp, error)
 	}
 
 	return completeResp.Result().(*CompleteResp), nil
+}
+
+func pHook(event *ProgressEvent) {
+	switch event.EventType {
+	case transferStartedEvent:
+		log.Debug("upload start")
+	case transferDataEvent:
+		log.Debugf("uploading, %.02f%%", float64(event.ConsumedBytes*100)/float64(event.TotalBytes))
+	case transferCompletedEvent:
+		log.Info("upload success")
+	case transferFailedEvent:
+		log.Error("upload fail")
+	}
 }

@@ -32,5 +32,8 @@ func hcHook(_ *httpx.Client, req *http.Request) error {
 		req.Header.Del(emptyContentType)
 		req.Header.Set(consts.ContentType, "")
 	}
+	if pr, ok := req.Body.(*ProgressReader); ok {
+		pr.hook(&ProgressEvent{TotalBytes: pr.totalBytes, EventType: transferStartedEvent})
+	}
 	return nil
 }

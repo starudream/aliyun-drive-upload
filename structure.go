@@ -45,7 +45,7 @@ type FileReq struct {
 	Name          string        `json:"name"`
 	Type          string        `json:"type"`
 	CheckNameMode string        `json:"check_name_mode"`
-	Size          int           `json:"size"`
+	Size          int64         `json:"size"`
 	PreHash       string        `json:"pre_hash"`
 }
 
