@@ -16,7 +16,7 @@ const (
 	AccessTokenPrefix  = "at:"
 	RefreshTokenPrefix = "rt:"
 
-	emptyContentType = "x-empty-content-type"
+	xEmptyContentType = "x-empty-content-type"
 )
 
 var (
@@ -28,12 +28,9 @@ var (
 )
 
 func hcHook(_ *httpx.Client, req *http.Request) error {
-	if req.Header.Get(emptyContentType) != "" {
-		req.Header.Del(emptyContentType)
+	if req.Header.Get(xEmptyContentType) != "" {
+		req.Header.Del(xEmptyContentType)
 		req.Header.Set(consts.ContentType, "")
-	}
-	if pr, ok := req.Body.(*ProgressReader); ok {
-		pr.hook(&ProgressEvent{TotalBytes: pr.totalBytes, EventType: transferStartedEvent})
 	}
 	return nil
 }

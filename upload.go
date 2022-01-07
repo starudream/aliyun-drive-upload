@@ -68,26 +68,6 @@ func UploadFile(refreshToken, directory, filename string) (*CompleteResp, error)
 		return nil, fmt.Errorf("upload: only support one part file")
 	}
 
-	// Method 1: use resty, but need comment `github.com/go-resty/resty/v2@v2.7.0/middleware.go:209` `getBodyCopy` function.
-
-	// uploadResp, err := hc.
-	// 	NewRequest().
-	// 	SetHeader(emptyContentType, "true").
-	// 	SetBody(&ProgressReader{reader: file, hook: pHook, totalBytes: fs.Size()}).
-	// 	SetError(OSSResp{}).
-	// 	Put(fileRes.PartInfoList[0].UploadUrl)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	//
-	// if uploadResp.IsError() {
-	// 	if e, ok := uploadResp.Error().(*OSSResp); ok {
-	// 		return nil, fmt.Errorf("upload: %s, %s", e.Code, e.Message)
-	// 	}
-	// }
-
-	// Method 2: use stdlib http client
-
 	err = upload(file, fs, fileRes.PartInfoList[0].UploadUrl)
 	if err != nil {
 		return nil, err
@@ -112,15 +92,22 @@ func UploadFile(refreshToken, directory, filename string) (*CompleteResp, error)
 	return completeResp.Result().(*CompleteResp), nil
 }
 
+// because of `github.com/go-resty/resty/v2@v2.7.0/middleware.go:521` `getBodyCopy` weak point to use stdlib
 func upload(file *os.File, fs os.FileInfo, url string) error {
-	req, err := http.NewRequest(http.MethodPut, url, &ProgressReader{reader: file, hook: pHook, totalBytes: fs.Size()})
+	pr := &ProgressReader{reader: file, hook: pHook, totalBytes: fs.Size()}
+
+	req, err := http.NewRequest(http.MethodPut, url, pr)
 	if err != nil {
 		return err
 	}
+
+	pr.hook(&ProgressEvent{TotalBytes: pr.totalBytes, EventType: transferStartedEvent})
+
 	resp, err := hc.GetClient().Do(req)
 	if err != nil {
 		return err
 	}
+
 	if resp.StatusCode > 399 {
 		ossResp := &OSSResp{}
 		err = xml.NewDecoder(resp.Body).Decode(ossResp)
@@ -129,6 +116,7 @@ func upload(file *os.File, fs os.FileInfo, url string) error {
 		}
 		return fmt.Errorf("upload: %s, %s", ossResp.Code, ossResp.Message)
 	}
+
 	return nil
 }
 
