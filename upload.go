@@ -2,8 +2,12 @@ package aliyunDriveUpload
 
 import (
 	"fmt"
+	"net/http"
 	"os"
+	"sync/atomic"
+	"time"
 
+	"github.com/go-sdk/lib/codec/xml"
 	"github.com/go-sdk/lib/consts"
 	"github.com/go-sdk/lib/log"
 )
@@ -64,20 +68,29 @@ func UploadFile(refreshToken, directory, filename string) (*CompleteResp, error)
 		return nil, fmt.Errorf("upload: only support one part file")
 	}
 
-	uploadResp, err := hc.
-		NewRequest().
-		SetHeader(emptyContentType, "true").
-		SetBody(&ProgressReader{reader: file, hook: pHook, totalBytes: fs.Size()}).
-		SetError(OSSResp{}).
-		Put(fileRes.PartInfoList[0].UploadUrl)
+	// Method 1: use resty, but need comment `github.com/go-resty/resty/v2@v2.7.0/middleware.go:209` `getBodyCopy` function.
+
+	// uploadResp, err := hc.
+	// 	NewRequest().
+	// 	SetHeader(emptyContentType, "true").
+	// 	SetBody(&ProgressReader{reader: file, hook: pHook, totalBytes: fs.Size()}).
+	// 	SetError(OSSResp{}).
+	// 	Put(fileRes.PartInfoList[0].UploadUrl)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	//
+	// if uploadResp.IsError() {
+	// 	if e, ok := uploadResp.Error().(*OSSResp); ok {
+	// 		return nil, fmt.Errorf("upload: %s, %s", e.Code, e.Message)
+	// 	}
+	// }
+
+	// Method 2: use stdlib http client
+
+	err = upload(file, fs, fileRes.PartInfoList[0].UploadUrl)
 	if err != nil {
 		return nil, err
-	}
-
-	if uploadResp.IsError() {
-		if e, ok := uploadResp.Error().(*OSSResp); ok {
-			return nil, fmt.Errorf("upload: %s, %s", e.Code, e.Message)
-		}
 	}
 
 	completeResp, err := hc.
@@ -99,15 +112,44 @@ func UploadFile(refreshToken, directory, filename string) (*CompleteResp, error)
 	return completeResp.Result().(*CompleteResp), nil
 }
 
+func upload(file *os.File, fs os.FileInfo, url string) error {
+	req, err := http.NewRequest(http.MethodPut, url, &ProgressReader{reader: file, hook: pHook, totalBytes: fs.Size()})
+	if err != nil {
+		return err
+	}
+	resp, err := hc.GetClient().Do(req)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode > 399 {
+		ossResp := &OSSResp{}
+		err = xml.NewDecoder(resp.Body).Decode(ossResp)
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("upload: %s, %s", ossResp.Code, ossResp.Message)
+	}
+	return nil
+}
+
 func pHook(event *ProgressEvent) {
 	switch event.EventType {
 	case transferStartedEvent:
 		log.Debug("upload start")
 	case transferDataEvent:
-		log.Debugf("uploading, %.02f%%", float64(event.ConsumedBytes*100)/float64(event.TotalBytes))
+		if pSend() {
+			log.Debugf("uploading, %.02f%%", float64(event.ConsumedBytes*100)/float64(event.TotalBytes))
+		}
 	case transferCompletedEvent:
 		log.Info("upload success")
 	case transferFailedEvent:
 		log.Error("upload fail")
 	}
+}
+
+var pUnix = int64(0)
+
+func pSend() bool {
+	x := time.Now().UnixMilli() / 500
+	return x != atomic.SwapInt64(&pUnix, x)
 }
