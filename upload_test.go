@@ -3,7 +3,7 @@ package aliyunDriveUpload
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/go-sdk/lib/testx"
 )
 
 func TestUploadFile(t *testing.T) {
@@ -11,10 +11,10 @@ func TestUploadFile(t *testing.T) {
 		t.SkipNow()
 	}
 	uploadResp, err := UploadFile(RefreshToken, "", "README.md")
-	assert.NoError(t, err)
+	testx.RequireNoError(t, err)
 
 	downloadResp, err := GetDownloadURL(RefreshToken, uploadResp.FileId)
-	assert.NoError(t, err)
+	testx.RequireNoError(t, err)
 
 	t.Log(downloadResp.Url)
 	t.Log(downloadResp.RateLimit)

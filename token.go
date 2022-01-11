@@ -8,12 +8,18 @@ import (
 )
 
 func GetToken(refreshToken string) (*TokenResp, error) {
-	at, exist := mc.Get(AccessTokenPrefix + refreshToken)
+	at, exist, err := mc.Get(AccessTokenPrefix + refreshToken)
+	if err != nil {
+		return nil, err
+	}
 	if exist {
 		return at.(*TokenResp), nil
 	}
 
-	rt, exist := mc.Get(RefreshTokenPrefix + refreshToken)
+	rt, exist, err := mc.Get(RefreshTokenPrefix + refreshToken)
+	if err != nil {
+		return nil, err
+	}
 	if exist {
 		refreshToken = rt.(string)
 	}
@@ -35,8 +41,14 @@ func GetToken(refreshToken string) (*TokenResp, error) {
 
 	res := resp.Result().(*TokenResp)
 
-	mc.Set(AccessTokenPrefix+refreshToken, res, time.Duration(res.ExpiresIn)*time.Second-time.Minute)
-	mc.SetDefault(RefreshTokenPrefix+refreshToken, res.RefreshToken)
+	err1 := mc.Set(AccessTokenPrefix+refreshToken, res, time.Duration(res.ExpiresIn)*time.Second-time.Minute)
+	if err != nil {
+		return nil, err1
+	}
+	err2 := mc.SetDefault(RefreshTokenPrefix+refreshToken, res.RefreshToken)
+	if err2 != nil {
+		return nil, err2
+	}
 
 	return res, nil
 }

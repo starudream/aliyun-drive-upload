@@ -16,6 +16,7 @@ import (
 const link = "https://passport.aliyundrive.com/mini_login.htm?lang=zh_cn&appName=aliyun_drive&appEntrance=web&styleType=auto"
 
 var (
+	Ver   bool
 	Token string
 	Dir   string
 	Files []string
@@ -23,11 +24,17 @@ var (
 )
 
 func init() {
+	flag.BoolVar(&Ver, "version", false, "show versions")
 	flag.StringVar(&Token, "token", "", "refresh token\nopen this link and click F12 to open devtools, then login to your account.\nfind the request in the network and get the 'bizExt' value in response, copy 'refreshToken' in the base64 decrypted json.\nlink: "+link)
 	flag.StringVar(&Dir, "dir", "root", "directory id of you upload\nopen the 'aliyundrive.com' and click into the directory, you can find id in the url.")
 	flag.StringSliceVar(&Files, "file", []string{}, "local file path\nif multiple, use '-file a -file b'.")
 	flag.StringSliceVar(&Fids, "fid", []string{}, "remote file id\nif multiple, use '-fid xxx -fid yyy'.")
 	flag.Parse()
+
+	if Ver {
+		fmt.Println(app.VersionInfo())
+		os.Exit(0)
+	}
 
 	Files = sliceTrimSpace(Files)
 	Fids = sliceTrimSpace(Fids)

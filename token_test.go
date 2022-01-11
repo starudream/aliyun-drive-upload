@@ -3,7 +3,7 @@ package aliyunDriveUpload
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/go-sdk/lib/testx"
 )
 
 func TestGetToken(t *testing.T) {
@@ -11,5 +11,5 @@ func TestGetToken(t *testing.T) {
 		t.SkipNow()
 	}
 	_, err := GetToken(RefreshToken)
-	assert.NoError(t, err)
+	testx.AssertNoError(t, err)
 }
