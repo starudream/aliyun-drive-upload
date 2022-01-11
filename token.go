@@ -4,20 +4,24 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-sdk/lib/codec/json"
 	"github.com/go-sdk/lib/consts"
+	"github.com/go-sdk/lib/rdx"
 )
 
 func GetToken(refreshToken string) (*TokenResp, error) {
 	at, exist, err := mc.Get(AccessTokenPrefix + refreshToken)
-	if err != nil {
+	if err != nil && err != rdx.ErrNil {
 		return nil, err
 	}
 	if exist {
-		return at.(*TokenResp), nil
+		resp := &TokenResp{}
+		err = json.UnmarshalFromString(at.(string), resp)
+		return resp, err
 	}
 
 	rt, exist, err := mc.Get(RefreshTokenPrefix + refreshToken)
-	if err != nil {
+	if err != nil && err != rdx.ErrNil {
 		return nil, err
 	}
 	if exist {
@@ -41,7 +45,7 @@ func GetToken(refreshToken string) (*TokenResp, error) {
 
 	res := resp.Result().(*TokenResp)
 
-	err1 := mc.Set(AccessTokenPrefix+refreshToken, res, time.Duration(res.ExpiresIn)*time.Second-time.Minute)
+	err1 := mc.Set(AccessTokenPrefix+refreshToken, json.MustMarshalToString(res), time.Duration(res.ExpiresIn)*time.Second-time.Minute)
 	if err != nil {
 		return nil, err1
 	}
