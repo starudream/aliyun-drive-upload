@@ -2,7 +2,7 @@ module github.com/starudream/aliyun-drive-upload
 
 go 1.17
 
-require github.com/go-sdk/lib v0.0.6
+require github.com/go-sdk/lib v0.0.7
 
 require (
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect

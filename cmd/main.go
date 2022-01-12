@@ -13,7 +13,10 @@ import (
 	aliyunDriveUpload "github.com/starudream/aliyun-drive-upload"
 )
 
-const link = "https://passport.aliyundrive.com/mini_login.htm?lang=zh_cn&appName=aliyun_drive&appEntrance=web&styleType=auto"
+const (
+	name = "aliyun-drive-upload"
+	link = "https://passport.aliyundrive.com/mini_login.htm?lang=zh_cn&appName=aliyun_drive&appEntrance=web&styleType=auto"
+)
 
 var (
 	Ver   bool
@@ -24,30 +27,35 @@ var (
 )
 
 func init() {
-	flag.BoolVar(&Ver, "version", false, "show versions")
-	flag.StringVar(&Token, "token", "", "refresh token\nopen this link and click F12 to open devtools, then login to your account.\nfind the request in the network and get the 'bizExt' value in response, copy 'refreshToken' in the base64 decrypted json.\nlink: "+link)
-	flag.StringVar(&Dir, "dir", "root", "directory id of you upload\nopen the 'aliyundrive.com' and click into the directory, you can find id in the url.")
-	flag.StringSliceVar(&Files, "file", []string{}, "local file path\nif multiple, use '-file a -file b'.")
-	flag.StringSliceVar(&Fids, "fid", []string{}, "remote file id\nif multiple, use '-fid xxx -fid yyy'.")
-	flag.Parse()
+	f := flag.NewFlagSetWithBuffer(name, flag.NothingOnError)
+	f.BoolVar(&Ver, "version", false, "show versions")
+	f.StringVar(&Token, "token", "", "refresh token\nopen this link and click F12 to open devtools, then login to your account.\nfind the request in the network and get the 'bizExt' value in response, copy 'refreshToken' in the base64 decrypted json.\nlink: "+link)
+	f.StringVar(&Dir, "dir", "root", "directory id of you upload\nopen the 'aliyundrive.com' and click into the directory, you can find id in the url.")
+	f.StringSliceVar(&Files, "file", []string{}, "local file path\nif multiple, use '-file a -file b'.")
+	f.StringSliceVar(&Fids, "fid", []string{}, "remote file id\nif multiple, use '-fid xxx -fid yyy'.")
+	err := f.Parse(os.Args[1:])
+	if err != nil && !flag.IsErrFlagNotDefined(err) {
+		f.ErrAndExit(err, 1)
+	}
 
 	if Ver {
-		fmt.Println(app.VersionInfo())
-		os.Exit(0)
+		f.MsgAndExit(app.VersionInfo(), 0)
+	}
+
+	if Token == "" {
+		f.ErrAndExit(fmt.Errorf("missing token"), 1)
 	}
 
 	Files = sliceTrimSpace(Files)
 	Fids = sliceTrimSpace(Fids)
 
-	if Token == "" || (len(Files) == 0 && len(Fids) == 0) {
-		fmt.Println("missing args")
-		flag.Usage()
-		os.Exit(1)
+	if len(Files) == 0 && len(Fids) == 0 {
+		f.MsgAndExit("missing args", 1)
 	}
 }
 
 func main() {
-	a := app.New("aliyun-drive-upload")
+	a := app.New(name)
 	defer a.Recover()
 
 	a.Add(func() error {
