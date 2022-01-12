@@ -30,9 +30,9 @@ var (
 
 func init() {
 	if rdx.Default() == nil {
-		mc = cache.NewMemoryCacheWithCleaner(time.Hour, time.Second, nil)
+		mc = cache.NewMemoryCacheWithCleaner(72*time.Hour, time.Second, nil)
 	} else {
-		mc = cache.NewRedisCache(time.Hour, rdx.Default())
+		mc = cache.NewRedisCache(72*time.Hour, rdx.Default())
 	}
 }
 
