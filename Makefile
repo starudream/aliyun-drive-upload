@@ -1,4 +1,4 @@
-GO 	    ?= GO111MODULE=on go
+GO      ?= GO111MODULE=on go
 VERSION ?= $(shell git describe --exact-match --tags HEAD 2>/dev/null || echo "latest")
 GITHASH ?= $(shell git rev-parse --short HEAD)
 

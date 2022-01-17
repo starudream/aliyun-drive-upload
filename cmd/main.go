@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"strings"
 
@@ -43,7 +42,7 @@ func init() {
 	}
 
 	if Token == "" {
-		f.ErrAndExit(fmt.Errorf("missing token"), 1)
+		f.MsgAndExit("missing token", 1)
 	}
 
 	Files = sliceTrimSpace(Files)
